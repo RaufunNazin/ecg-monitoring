@@ -1,35 +1,81 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
+import React, { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import "./index.css";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Admin from "./pages/Admin";
+import PrivateRoute from "./components/PrivateRoute";
+import { useGlobalState } from "./components/UserContext";
+import jwt_decode from "jwt-decode";
+import api from "./api";
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [user, setUser] = useGlobalState("user");
+  const [loading, setLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useGlobalState("isLoggedIn");
+  const [jwt, setJwt] = useGlobalState("jwt");
 
-  return (
-    <>
+  useEffect(() => {
+    if (localStorage.getItem("jwt")) {
+      setLoading(true);
+      const decoded = jwt_decode(localStorage.getItem("jwt"));
+      api
+        .get(`/users/${decoded.id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("jwt")}`,
+          },
+        })
+        .then((res) => {
+          let toUpdateKeys = ["id", "name", "phone", "role"];
+          let profile = res.data;
+          Object.keys(user).forEach((k) => {
+            if (toUpdateKeys.includes(k)) {
+              user[k] = profile[k];
+            }
+          });
+          setUser(user);
+          setIsLoggedIn(true);
+          setJwt(localStorage.getItem("jwt"));
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.log(err);
+          setLoading(false);
+        });
+    }
+  }, []);
+  if (loading === true)
+    return (
       <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <br />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
+    );
+  else
+    return (
+      <div>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/">
+              <Route index element={<Home />} />
+              <Route path="home" element={<Home />} />
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+              <Route
+                path="admin"
+                element={
+                  <PrivateRoute>
+                    <Admin />
+                  </PrivateRoute>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    );
+};
 
-export default App
+export default App;
